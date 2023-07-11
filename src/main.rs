@@ -4,8 +4,6 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 use serde::Deserialize;
 
-extern crate encoding;
-
 #[derive(Debug, StructOpt)]
 #[structopt(name = "pdf_replacer", about = "Replace simple strings in pdf documents.")]
 struct Options {
