@@ -16,9 +16,9 @@ Just install rust following the official [Install Rust](https://www.rust-lang.or
 -h, --help      Prints help information
 -i <input>      PDF Source path
 -j <json>       JSON Array file path or read from stdin until EOF if not present
-				[
-					{key: "[PLACEHOLDER]", value: "A Value"}, 
-					{key: "anything", value: "Other value"}
+                [
+                    {key: "[PLACEHOLDER]", value: "A Value"}, 
+                    {key: "anything", value: "Other value"}
                 ]
 -o <output>     PDF Output file path or outputs to stdout if not present
 ```
