@@ -24,7 +24,7 @@ struct Options {
     output: Option<PathBuf>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 struct ReplaceMap {
     key: String,
     value: String
@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn Error>>{
 
     for (page, _object_id) in document.get_pages() {
         for record in &rmap {
-            document.replace_text(page, &record.key, &record.value)?;
+            replace_text(&mut document, page, &record.key, &record.value)?;
         }   
     }
 
