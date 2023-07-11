@@ -7,8 +7,12 @@ use serde::Deserialize;
 #[derive(Debug, StructOpt)]
 #[structopt(name = "pdf_replacer", about = "Replace simple strings in pdf documents.")]
 struct Options {
-    /// JSON Array file path [{key: "[PLACEHOLDER]", value: "A Value"}, {key: "anything", value: "Other value"}] or read from stdin until EOF if not present
-    #[structopt(short, parse(from_os_str))]
+    /// JSON Array file path or read from stdin until EOF if not present
+    /// [
+    ///     {key: "[PLACEHOLDER]", value: "A Value"}, 
+    ///     {key: "anything", value: "Other value"}
+    /// ]
+    #[structopt(short, parse(from_os_str), verbatim_doc_comment)]
     json: Option<PathBuf>,
 
     /// PDF Source path
