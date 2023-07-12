@@ -25,9 +25,9 @@ struct Options {
 }
 
 #[derive(Debug, Deserialize)]
-struct ReplaceMap {
-    key: String,
-    value: String
+pub struct ReplaceMap {
+    pub key: String,
+    pub value: String
 }
 
 fn main() -> Result<(), Box<dyn Error>>{
@@ -51,14 +51,12 @@ fn main() -> Result<(), Box<dyn Error>>{
         },
     }
 
-    let rmap: Vec<ReplaceMap> = serde_json::from_str(&buffer)?;
+    let r_map: Vec<ReplaceMap> = serde_json::from_str(&buffer)?;
 
     let mut document = Document::load(options.input)?;
 
     for (page, _object_id) in document.get_pages() {
-        for record in &rmap {
-            replace_text(&mut document, page, &record.key, &record.value)?;
-        }   
+        replace_text(&mut document, page, &r_map)?;
     }
 
     match options.output {
@@ -74,7 +72,7 @@ fn main() -> Result<(), Box<dyn Error>>{
     Ok(())
 }
 
-pub fn replace_text(doc: &mut Document, page_number: u32, text: &str, other_text: &str) -> Result<(), Box<dyn Error>> {
+pub fn replace_text(doc: &mut Document, page_number: u32, r_map: &Vec<ReplaceMap>) -> Result<(), Box<dyn Error>> {
     let page = page_number.saturating_sub(1) as usize;
     let page_id = doc
         .page_iter()
@@ -88,7 +86,8 @@ pub fn replace_text(doc: &mut Document, page_number: u32, text: &str, other_text
 
     let content_data = doc.get_page_content(page_id)?;
     let mut content = Content::decode(&content_data)?;
-    let mut current_encoding = None;
+    let mut current_encoding: Option<&str> = None;
+
     for operation in &mut content.operations {
         match operation.operator.as_ref() {
             "Tf" => {
@@ -100,32 +99,72 @@ pub fn replace_text(doc: &mut Document, page_number: u32, text: &str, other_text
                 current_encoding = encodings.get(current_font).map(std::string::String::as_str);
             }
             "Tj" => {
+                if !valid_encoding(current_encoding) {continue;}
+
                 let operands_flatmap = operation.operands.iter_mut().flat_map(Object::as_str_mut);
                 for bytes in operands_flatmap {
-                    let decoded_text = Document::decode_text(current_encoding, bytes);
-                    if decoded_text == text {
-                        let encoded_bytes = Document::encode_text(current_encoding, other_text);
+                    let mut  modified: bool = false;
+                    let mut decoded_text = Document::decode_text(current_encoding, bytes);
+
+                    for record in r_map {
+                        if decoded_text.contains(&record.key) {
+                            decoded_text = decoded_text.replace(&record.key, &record.value);
+                            modified = true;
+                        }
+                    }
+
+                    if modified {
+                        let encoded_bytes = Document::encode_text(current_encoding, &decoded_text);
                         *bytes = encoded_bytes;
                     }
                 }
             }
             "TJ" => {
+                if !valid_encoding(current_encoding) {continue;}
+
+                let mut modified: bool = false;
                 let mut object_text = String::new();
                 collect_text(&mut object_text, current_encoding, &operation.operands);
-                if object_text.contains(text) {
-                    let new_text: String = object_text.replace(text, other_text);
-                    let encoded_bytes = Document::encode_text(current_encoding, &new_text);
+
+                for record in r_map {
+                    if object_text.contains(&record.key) {
+                        object_text = object_text.replace(&record.key, &record.value);
+                        modified = true;
+                    }
+                }
+
+                if modified {
+                    let encoded_bytes = Document::encode_text(current_encoding, &object_text);
                     let object_string = Object::String(encoded_bytes, lopdf::StringFormat::Literal);
                     operation.operands = vec![object_string];
                     operation.operator = "Tj".into();
                 }
             }
-            _ => {}
+            _ => {
+                // println!("OP {:?}", operation);
+            }
         }
     }
     let modified_content = content.encode()?;
     let result = doc.change_page_content(page_id, modified_content);
     Ok(result?)
+}
+
+fn valid_encoding (encoding: Option<&str>) -> bool {
+    match encoding {
+        Some(encoding) => {
+            match encoding {
+                "StandardEncoding" | 
+                "MacRomanEncoding" | 
+                "MacExpertEncoding" | 
+                "WinAnsiEncoding" | 
+                "UniGB-UCS2-H" | 
+                "UniGB−UTF16−H" => true,
+                _ => false,
+            }
+        },
+        None => false,
+    }
 }
 
 fn collect_text(text: &mut String, encoding: Option<&str>, operands: &[Object]) {
