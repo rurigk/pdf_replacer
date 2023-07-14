@@ -1,5 +1,5 @@
 use std::error::Error;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use lopdf::{Document, content::Content, Object};
 use crate::cli::ReplaceMap;
 
@@ -46,7 +46,7 @@ pub fn replace_text(doc: &mut Document, page_number: u32, r_map: &Vec<ReplaceMap
                 for bytes in operands_flatmap {
                     let mut  modified: bool = false;
                     let mut decoded_text = mapper.decode(&current_font.unwrap_or_default().to_vec(), bytes);
-                    println!("{decoded_text}");
+                    // println!("{decoded_text}");
 
                     for record in r_map {
                         if decoded_text.contains(&record.key) {
@@ -67,7 +67,7 @@ pub fn replace_text(doc: &mut Document, page_number: u32, r_map: &Vec<ReplaceMap
                 let mut modified: bool = false;
                 let mut object_text = String::new();
                 collect_text(&mut object_text, &mapper, &current_font.unwrap_or_default().to_vec(), &operation.operands);
-                println!("{object_text}");
+                // println!("{object_text}");
                 for record in r_map {
                     if object_text.contains(&record.key) {
                         object_text = object_text.replace(&record.key, &record.value);
@@ -76,7 +76,8 @@ pub fn replace_text(doc: &mut Document, page_number: u32, r_map: &Vec<ReplaceMap
                 }
 
                 if modified {
-                    let encoded_bytes = Document::encode_text(current_encoding, &object_text);
+                    let encoded_bytes = mapper.encode(&current_font.unwrap_or_default().to_vec(), &object_text);
+                    // let encoded_bytes = Document::encode_text(current_encoding, &object_text);
                     let object_string = Object::String(encoded_bytes, lopdf::StringFormat::Literal);
                     operation.operands = vec![object_string];
                     operation.operator = "Tj".into();
@@ -93,29 +94,15 @@ pub fn replace_text(doc: &mut Document, page_number: u32, r_map: &Vec<ReplaceMap
 }
 
 fn valid_encoding (encoding: Option<&str>) -> bool {
-    match encoding {
-        Some(encoding) => {
-            match encoding {
-                "StandardEncoding" | 
-                "MacRomanEncoding" | 
-                "MacExpertEncoding" | 
-                "WinAnsiEncoding" | 
-                "UniGB-UCS2-H" | 
-                "UniGB−UTF16−H" |
-                "Identity-H" => true,
-                _ => false,
-            }
-        },
-        None => false,
-    }
-}
+    matches!(encoding, Some("StandardEncoding") |  Some("MacRomanEncoding") |  Some("MacExpertEncoding") |  Some("WinAnsiEncoding") |  Some("UniGB-UCS2-H") |  Some("UniGB−UTF16−H") | Some("Identity-H"))
+}   
 
 fn collect_text(text: &mut String, mapper: &UnicodeMapper, font: &Vec<u8>, operands: &[Object]) {
     for operand in operands.iter() {
         match *operand {
             Object::String(ref bytes, _) => {
                 // let decoded_text = Document::decode_text(encoding, bytes);
-                let decoded_text = mapper.decode(&font, bytes);
+                let decoded_text = mapper.decode(font, bytes);
                 text.push_str(&decoded_text);
             }
             Object::Array(ref arr) => {

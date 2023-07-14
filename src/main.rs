@@ -1,6 +1,6 @@
 use std::{error::Error, io::{self, Read}, fs::File};
 use cli::{Options, ReplaceMap};
-use lopdf::{Document, content::Content, Object};
+use lopdf::Document;
 use structopt::StructOpt;
 
 mod cli;
